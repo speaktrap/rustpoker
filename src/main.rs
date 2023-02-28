@@ -2,7 +2,7 @@ use rand::distributions::{Distribution, Uniform};
 use rand::Rng;
 use std::io;
 
-//ASCII friendly card noting
+//ASCII friendly card noting (can be generated on runtime?)
 /*
 const CARDS: &'static [&'static str] = &["  ", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "h9", "h10", "hJ", "hQ", "hK", "hA",
 			 		       "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "dJ", "dQ", "dK", "dA",
@@ -35,14 +35,19 @@ const STRAIGHT_FLUSH: usize = 8;
 const ROYAL_FLUSH: usize = 9;
 
 #[allow(dead_code)]
+#[derive(Copy, Clone)]
 enum Suit {
+	None,
 	Hearts,
 	Diamonds,
 	Clubs,
 	Spades,
 	}
 
+//impl Copy for Suit {}
+
 #[allow(dead_code)]
+#[derive(Copy, Clone)]
 struct Card {
 	value: usize,
 	suit: Suit,
@@ -53,14 +58,23 @@ struct Card {
 impl Card {
 	fn new(value: usize, suit: Suit) -> Self {
 		let a: usize;
+		let id;
+		let symbol: char;
 		match suit {
 			Suit::Hearts => a = 0,
 			Suit::Diamonds => a = 1,
 			Suit::Clubs => a = 2,
 			Suit::Spades => a = 3,
+			Suit::None => a = 0,
         		};
-		let symbol: char = UNICODE_CARDS[a*13 + value-1];
-		let id = a*13 + value-1;
+        	if value == 0 {
+        		symbol = UNICODE_CARDS[0];
+        		id = 0; //special handling
+        	} else {
+			symbol = UNICODE_CARDS[a*13 + value-1];
+			id = a*13 + value-1;
+			}
+		
 		Self {value, suit, symbol, id,}
 		}
 	fn verbose(&self) -> &str {
@@ -182,34 +196,44 @@ fn check_hand(player_hand: [usize; 2], community: [usize; 5]) -> usize {
 	return value;
 	}
 	
-fn print_table(community: [usize; 5], player_hand: [usize; 2], player_cash: i32, pot: u32) -> usize {
+fn print_table(community: [Card; 5], player_hand: [Card; 2], player_cash: i32, pot: u32) -> usize {
 	let mut value = 0;
 	clearscreen::clear().unwrap();
-	value = check_hand(player_hand, community);
+	//value = check_hand(player_hand, community);
+	value = 0;
 	println!();println!();println!();println!();
 	println!("   🂠  {} {} {} {} {}",
-		UNICODE_CARDS[community[0]],
-		UNICODE_CARDS[community[1]],
-		UNICODE_CARDS[community[2]],
-		UNICODE_CARDS[community[3]],
-		UNICODE_CARDS[community[4]],
+		community[0].symbol,
+		community[1].symbol,
+		community[2].symbol,
+		community[3].symbol,
+		community[4].symbol,
 		);
 	println!();println!();
-	println!("Your hand: {} {}", UNICODE_CARDS[player_hand[0]], UNICODE_CARDS[player_hand[1]]);
+	println!("Your hand: {} {}", player_hand[0].symbol, player_hand[1].symbol);
 	println!();
 	println!("Your Cash: {}", player_cash);
 	println!("This pot:  {}", pot);
 	return value;
 	}
 
-fn draw_card(dealt: &mut [bool], rng: &mut impl Rng) -> usize {
+fn draw_card(dealt: &mut [bool], rng: &mut impl Rng) -> Card {
 	let deal = Uniform::from(1..52);
 	loop {
-		let card = deal.sample(rng);
-		if !dealt[card] {
-			dealt[card] = true;
-			return card;
-			}
+		let card_id = deal.sample(rng);
+		if dealt[card_id] {continue;}
+		let suit: Suit;
+		match card_id {       //Extract suit
+			0..=13  => suit = Suit::Hearts,
+			14..=26 => suit = Suit::Diamonds,
+			27..=39 => suit = Suit::Clubs,
+			40..=52 => suit = Suit::Spades,
+			_ => suit = Suit::None,
+			};
+	
+		dealt[card_id] = true;
+		return Card::new(card_id%13+1, suit);
+			
 		}
 	}
 	
@@ -220,12 +244,15 @@ fn main() {
 		
 	loop {
 		//Start a hand
-		let mut dealt: [bool; 53] = [false; 53];
-		let mut community = [0, 0, 0, 0, 0];
-		let mut player_hand = [draw_card(&mut dealt, &mut rng), 99];
-		let mut dealer_hand = [draw_card(&mut dealt, &mut rng), 99];
+		let mut dealt:      [bool; 52] = [false; 52];
+		let mut community:   [Card; 5] = [Card::new(0, Suit::None); 5];
+		let mut player_hand: [Card; 2] = [Card::new(0, Suit::None); 2];
+		let mut dealer_hand: [Card; 2] = [Card::new(0, Suit::None); 2];
 		let mut bet: i32;
 		let mut pot: u32 = 0;
+		
+		player_hand[0] = draw_card(&mut dealt, &mut rng);
+		dealer_hand[0] = draw_card(&mut dealt, &mut rng);
 		player_hand[1] = draw_card(&mut dealt, &mut rng);
 		dealer_hand[1] = draw_card(&mut dealt, &mut rng);
 		
@@ -250,9 +277,10 @@ fn main() {
 		//river
 		/* burn card*/ draw_card(&mut dealt, &mut rng);
 		community[4] = draw_card(&mut dealt, &mut rng);
-		if print_table(community, player_hand, player_cash, pot) == STRAIGHT_FLUSH {
+		print_table(community, player_hand, player_cash, pot);
+		//if print_table(community, player_hand, player_cash, pot) == STRAIGHT_FLUSH {
 			bet = ask();
-			}
+			//}
 		
 		}
 	}
