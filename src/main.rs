@@ -1,6 +1,5 @@
 //use rand::distributions::{Distribution, Uniform};
 use rand::seq::SliceRandom;
-use rand::Rng;
 use rand::prelude::*;
 use std::io;
 
@@ -102,6 +101,7 @@ impl Hand {
 		let text: Vec<String> = self.cards.iter().map(|card| card.symbol.to_string()).collect();
         	text.join(FACE_NAMES[0])
 		}
+		
 	fn tease(&self) -> String {
 		let text: Vec<String> = self.cards.iter().map(|_| BLANK_CARD.to_string()).collect();
 		text.join(FACE_NAMES[0])
@@ -111,6 +111,13 @@ impl Hand {
 		self.cards.push(card);
 		//DO NOT SORT BEFORE CHECKING!!!
 		//self.cards.sort_by_key(|card| card.value);
+		}
+		
+	fn compare(&self, ahand1: Hand, ahand2: Hand) {
+		//let mut hand1 = self.cards.clone();
+		//hand1.extend(ahand1.cards);
+		let hand1 = [self.cards.clone(), ahand1.cards].concat();
+		let hand2 = [self.cards.clone(), ahand2.cards].concat();
 		}
 	}
 	
@@ -178,7 +185,7 @@ fn ask() -> i32 {
 
 
 
-
+//DEAD CODE WALKIN'
 
 fn check_hand(player_hand: [Card; 2], community: [Card; 5]) -> usize {
 	let cards = [player_hand[0], player_hand[1],
@@ -337,13 +344,9 @@ fn check_hand(player_hand: [Card; 2], community: [Card; 5]) -> usize {
 	
 fn print_table(community: &String, player_hand: &String, dealer_hand: &String, player_cash: i32, pot: u32) {
 	clearscreen::clear().unwrap();
-	println!();
-	println!("Dealer hand: {}", dealer_hand);
-	println!();println!();println!();
-	println!("   {}  {}", BLANK_CARD, community);
-	println!();println!();
-	println!("Your hand: {}", player_hand);
-	println!();
+	println!("\nDealer hand: {}\n\n\n", dealer_hand);
+	println!("   {}  {}\n\n", BLANK_CARD, community);
+	println!("Your hand: {}\n", player_hand);
 	println!("Your Cash: {}", player_cash);
 	println!("This pot:  {}", pot);
 	}
