@@ -1,22 +1,16 @@
-use rand::distributions::{Distribution, Uniform};
+//use rand::distributions::{Distribution, Uniform};
+use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::prelude::*;
 use std::io;
 
-//ASCII friendly card noting (can be generated on runtime?)
-/*
-const CARDS: &'static [&'static str] = &["  ", "h2", "h3", "h4", "h5", "h6", "h7", "h8", "h9", "h10", "hJ", "hQ", "hK", "hA",
-			 		       "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "dJ", "dQ", "dK", "dA",
-					       "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "cJ", "cQ", "cK", "cA",
-					       "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "sJ", "sQ", "sK", "sA"];
-*/
-
-const UNICODE_CARDS: [char; 53] =       [' ',  '🂲', '🂳', '🂴', '🂵', '🂶', '🂷', '🂸', '🂹', '🂺', '🂻', '🂽', '🂾', '🂱',
+const UNICODE_CARDS: [char; 54] =       [' ',  '🂲', '🂳', '🂴', '🂵', '🂶', '🂷', '🂸', '🂹', '🂺', '🂻', '🂽', '🂾', '🂱',
 			 		       '🃂', '🃃', '🃄', '🃅', '🃆', '🃇', '🃈', '🃉', '🃊', '🃋', '🃍', '🃎', '🃁',
 					       '🃒', '🃓', '🃔', '🃕', '🃖', '🃗', '🃘', '🃙', '🃚', '🃛', '🃝', '🃞', '🃑',
-					       '🂢', '🂣', '🂤', '🂥', '🂦', '🂧', '🂨', '🂩', '🂪', '🂫', '🂭', '🂮', '🂡'];
+					       '🂢', '🂣', '🂤', '🂥', '🂦', '🂧', '🂨', '🂩', '🂪', '🂫', '🂭', '🂮', '🂡', '🂠'];
 
-
-const FACE_NAMES: &'static [&'static str] = &[" ", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"];
+const BLANK_CARD: char = UNICODE_CARDS[53];
+const FACE_NAMES: &'static [&'static str] = &[" ", " ", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"];
 
 const JACK: usize = 11;
 const QUEEN: usize = 12;
@@ -35,7 +29,7 @@ const STRAIGHT_FLUSH: usize = 8;
 const ROYAL_FLUSH: usize = 9;
 
 #[allow(dead_code)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 enum Suit {
 	None,
 	Hearts,
@@ -44,10 +38,8 @@ enum Suit {
 	Spades,
 	}
 
-//impl Copy for Suit {}
-
 #[allow(dead_code)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 struct Card {
 	value: usize,
 	suit: Suit,
@@ -61,11 +53,11 @@ impl Card {
 		let id;
 		let symbol: char;
 		match suit {
-			Suit::Hearts => a = 0,
+			Suit::Hearts   => a = 0,
 			Suit::Diamonds => a = 1,
-			Suit::Clubs => a = 2,
-			Suit::Spades => a = 3,
-			Suit::None => a = 0,
+			Suit::Clubs    => a = 2,
+			Suit::Spades   => a = 3,
+			Suit::None     => a = 0,
         		};
         	if value == 0 {
         		symbol = UNICODE_CARDS[0];
@@ -80,8 +72,79 @@ impl Card {
 	fn verbose(&self) -> &str {
 		&FACE_NAMES[self.value-1]
 		}
+	fn tell_suit(&self) -> &str {
+		let mut name: &str;
+		match self.suit {
+			Suit::Hearts   => name = "hearts",
+			Suit::Diamonds => name = "diamonds",
+			Suit::Clubs    => name = "clubs",
+			Suit::Spades   => name = "spades",
+			Suit::None     => name = "<NONE>",
+        		};
+        	&name
+        	}
 	}
 	
+struct Hand {
+	cards: Vec<Card>,
+	}
+
+impl Hand {
+	fn new() -> Self {
+		Self { cards: Vec::new(), }
+		}
+	
+	fn size(&self) -> usize {
+		self.cards.len()
+		}
+		
+	fn show(&self) -> String {
+		let text: Vec<String> = self.cards.iter().map(|card| card.symbol.to_string()).collect();
+        	text.join(FACE_NAMES[0])
+		}
+	fn tease(&self) -> String {
+		let text: Vec<String> = self.cards.iter().map(|_| BLANK_CARD.to_string()).collect();
+		text.join(FACE_NAMES[0])
+		}
+		
+	fn take(&mut self, card: Card) {
+		self.cards.push(card);
+		//DO NOT SORT BEFORE CHECKING!!!
+		//self.cards.sort_by_key(|card| card.value);
+		}
+	}
+	
+struct Deck {
+	cards:Vec<Card>,
+	}
+
+impl Deck {
+	fn new() -> Self {
+		let mut cards = Vec::new();
+		for i in 2..15 {
+			cards.push(Card::new(i, Suit::Hearts));
+			cards.push(Card::new(i, Suit::Diamonds));
+			cards.push(Card::new(i, Suit::Clubs));
+			cards.push(Card::new(i, Suit::Spades));
+			}
+		cards.shuffle(&mut thread_rng());
+		Self { cards }
+		}
+		
+	fn size(&self) -> usize {
+		self.cards.len()
+		}
+		
+	fn show(&self) -> String {
+		let symbols: Vec<String> = self.cards.iter().map(|card| card.symbol.to_string()).collect();
+        	symbols.join(FACE_NAMES[0])
+		}
+		
+	fn deal(&mut self) -> Card {
+		self.cards.pop().unwrap()
+		}
+	}
+
 
 
 fn ask() -> i32 {
@@ -108,25 +171,102 @@ fn ask() -> i32 {
 	return value;
 	}
 
-fn check_hand(player_hand: [usize; 2], community: [usize; 5]) -> usize {
+
+
+
+
+
+
+
+
+
+fn check_hand(player_hand: [Card; 2], community: [Card; 5]) -> usize {
 	let cards = [player_hand[0], player_hand[1],
 		community[0], community[1], community[2], community[3], community[4]]; 
 
 	let mut value = HIGH_CARD;
-	let mut count_faces: [usize; 14] = [0; 14];
+	let mut kinds: [usize; 15] = [0; 15];
 	
-	let mut count_hearts = 0;
-	let mut count_diamonds = 0;
-	let mut count_clubs = 0;
-	let mut count_spades = 0;
-
+	let mut kicker = 0;
+	
+	let mut count_hearts @ mut count_diamonds @ mut count_clubs @ mut count_spades = 0;
+	
 	let mut pairs = 0;
 	let mut triple = false;
 	let mut fourofakind = false;
+	let mut flush = false;
 	
-	let mut high_straight = 0;
-	let mut count_straight = 0;
+	let mut straight_counter = 0;
 
+	let mut straight_set: [Card; 5] = [Card::new(0, Suit::None); 5];
+	
+	//for i in 0..cards.len() {
+	for card in cards {
+		match card.suit {
+			Suit::Hearts => {
+				count_hearts += 1;
+				//kinds[card.value][0] = card;
+				},
+			Suit::Diamonds => {
+				count_diamonds += 1;
+				//kinds[card.value][1] = card
+				},
+			Suit::Clubs => {
+				count_clubs += 1;
+				//kinds[card.value][2] = card
+				},
+			Suit::Spades => {
+				count_spades += 1;
+				//kinds[card.value][3] = card
+				},
+			Suit::None => (),
+        		};
+        	kinds[card.value] += 1;
+        	}
+        	
+        //CHECK IF WE HAVE ONE OF THE FLUSHES
+        if count_hearts == 5 || count_diamonds == 5 || count_clubs == 5 || count_spades == 5 {
+	        value = value.max(FLUSH);
+	        println!("Flush!");
+	        //MOVE THIS LOWER! TO BOTTOM
+	        /*let kicker = cards.iter()
+    			.filter(|x| x.suit == Suit::Hearts)
+   			.max_by(|a, b| a.value.cmp(&b.value));*/
+	        }
+	        
+	//SEARCH FOR STRAIGHT
+        /*for i in 2..15 {
+		match kinds[i] {
+			4 => {value = value.max(FOUR_OF_A_KIND); kicker = i},
+			3 => triple      = true,
+			2 => pairs      += 1,
+			_ => (),
+			};
+		if kinds[i]>1 {
+			kicker = kinds[i]-1;
+			println!("{} of {}'s!", kicker, FACE_NAMES[i]);
+			}
+		if kinds[i]>0 && kinds[i-1]>0 {
+			straight_counter += 1;
+		} else {
+			straight_counter = 0;
+			}
+		if straight_counter >= 4 {
+			value = value.max(STRAIGHT);
+			println!("Straight");
+			
+			//kicker = i;
+			//println!("Straight with {} high!", FACES[i]);
+			//let straight_set = [high_straigh]
+			}
+		}*/
+        	
+	//FLUSH DEBUG - UNCOMMENT
+	//println!("H {}  D {}  C {}  S {}",count_hearts,count_diamonds,count_clubs,count_spades);
+	
+	
+	
+	/*
 	for i in cards  {
 		match i {       //Check for flush
 			1..=13  => count_hearts   += 1,
@@ -137,7 +277,6 @@ fn check_hand(player_hand: [usize; 2], community: [usize; 5]) -> usize {
 			};
 		count_faces[i%13] += 1;
 		}
-	
 	for i in 1..14 {
 		match count_faces[i] {
 			4 => fourofakind = true,
@@ -180,7 +319,7 @@ fn check_hand(player_hand: [usize; 2], community: [usize; 5]) -> usize {
 	       	value = value.max(ONE_PAIR);
 	        println!("A pair!");
 	        }}}}}
-	//println!("H {}  D {}  C {}  S {}",count_hearts,count_diamonds,count_clubs,count_spades);
+	
 	if count_hearts == 5 || count_diamonds == 5 || count_clubs == 5 || count_spades == 5 {
 		if high_straight > 0 {
 			value = value.max(STRAIGHT_FLUSH);
@@ -192,49 +331,21 @@ fn check_hand(player_hand: [usize; 2], community: [usize; 5]) -> usize {
 		} else {
 	if high_straight > 0 {
 	    	println!("Straight with {} high!", high_straight);
-		}}
+		}}*/
 	return value;
 	}
 	
-fn print_table(community: [Card; 5], player_hand: [Card; 2], player_cash: i32, pot: u32) -> usize {
-	let mut value = 0;
+fn print_table(community: &String, player_hand: &String, dealer_hand: &String, player_cash: i32, pot: u32) {
 	clearscreen::clear().unwrap();
-	//value = check_hand(player_hand, community);
-	value = 0;
-	println!();println!();println!();println!();
-	println!("   🂠  {} {} {} {} {}",
-		community[0].symbol,
-		community[1].symbol,
-		community[2].symbol,
-		community[3].symbol,
-		community[4].symbol,
-		);
+	println!();
+	println!("Dealer hand: {}", dealer_hand);
+	println!();println!();println!();
+	println!("   {}  {}", BLANK_CARD, community);
 	println!();println!();
-	println!("Your hand: {} {}", player_hand[0].symbol, player_hand[1].symbol);
+	println!("Your hand: {}", player_hand);
 	println!();
 	println!("Your Cash: {}", player_cash);
 	println!("This pot:  {}", pot);
-	return value;
-	}
-
-fn draw_card(dealt: &mut [bool], rng: &mut impl Rng) -> Card {
-	let deal = Uniform::from(1..52);
-	loop {
-		let card_id = deal.sample(rng);
-		if dealt[card_id] {continue;}
-		let suit: Suit;
-		match card_id {       //Extract suit
-			0..=13  => suit = Suit::Hearts,
-			14..=26 => suit = Suit::Diamonds,
-			27..=39 => suit = Suit::Clubs,
-			40..=52 => suit = Suit::Spades,
-			_ => suit = Suit::None,
-			};
-	
-		dealt[card_id] = true;
-		return Card::new(card_id%13+1, suit);
-			
-		}
 	}
 	
 
@@ -244,43 +355,45 @@ fn main() {
 		
 	loop {
 		//Start a hand
-		let mut dealt:      [bool; 52] = [false; 52];
-		let mut community:   [Card; 5] = [Card::new(0, Suit::None); 5];
-		let mut player_hand: [Card; 2] = [Card::new(0, Suit::None); 2];
-		let mut dealer_hand: [Card; 2] = [Card::new(0, Suit::None); 2];
+		let mut deck	    = Deck::new();
+		let mut community   = Hand::new();
+		let mut player_hand = Hand::new();
+		let mut dealer_hand = Hand::new();
 		let mut bet: i32;
 		let mut pot: u32 = 0;
 		
-		player_hand[0] = draw_card(&mut dealt, &mut rng);
-		dealer_hand[0] = draw_card(&mut dealt, &mut rng);
-		player_hand[1] = draw_card(&mut dealt, &mut rng);
-		dealer_hand[1] = draw_card(&mut dealt, &mut rng);
+		player_hand.take(deck.deal());
+		dealer_hand.take(deck.deal());
+		player_hand.take(deck.deal());
+		dealer_hand.take(deck.deal());
 		
 		//pre-flop
-		print_table(community, player_hand, player_cash, pot);
-		//bet = ask();
+		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
+		bet = ask();
 		
 		//flop
-		/* burn card*/ draw_card(&mut dealt, &mut rng);
-		community[0] = draw_card(&mut dealt, &mut rng);
-		community[1] = draw_card(&mut dealt, &mut rng);
-		community[2] = draw_card(&mut dealt, &mut rng);
-		print_table(community, player_hand, player_cash, pot);
-		//bet = ask();
+		/* burn card*/ deck.deal();
+		community.take(deck.deal());
+		community.take(deck.deal());
+		community.take(deck.deal());
+		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
+		bet = ask();
 		
 		//turn
-		/* burn card*/ draw_card(&mut dealt, &mut rng);
-		community[3] = draw_card(&mut dealt, &mut rng);
-		print_table(community, player_hand, player_cash, pot);
-		//bet = ask();
+		/* burn card*/ deck.deal();
+		community.take(deck.deal());
+		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
+		bet = ask();
 		
 		//river
-		/* burn card*/ draw_card(&mut dealt, &mut rng);
-		community[4] = draw_card(&mut dealt, &mut rng);
-		print_table(community, player_hand, player_cash, pot);
-		//if print_table(community, player_hand, player_cash, pot) == STRAIGHT_FLUSH {
-			bet = ask();
-			//}
+		/* burn card*/ deck.deal();
+		community.take(deck.deal());
+		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
+		bet = ask();
+		
+		//showdown
+		print_table(&community.show(), &player_hand.show(), &dealer_hand.show(), player_cash, pot);
+		ask();
 		
 		}
 	}
