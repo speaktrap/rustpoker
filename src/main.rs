@@ -15,6 +15,7 @@ const JACK: usize = 11;
 const QUEEN: usize = 12;
 const KING: usize = 13;
 const ACE: usize = 14;
+const RANKS: usize = 15;
 
 const HIGH_CARD: usize = 0;
 const ONE_PAIR: usize = 1;
@@ -27,27 +28,33 @@ const FOUR_OF_A_KIND: usize = 7;
 const STRAIGHT_FLUSH: usize = 8;
 const ROYAL_FLUSH: usize = 9;
 
+
 #[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq)]
 enum Suit {
-	None,
 	Hearts,
 	Diamonds,
 	Clubs,
 	Spades,
 	}
 
+impl Suit {
+    fn iter() -> &'static [Suit] {
+        &[Suit::Hearts, Suit::Diamonds, Suit::Clubs, Suit::Spades]
+    }
+}
+
 #[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq)]
 struct Card {
-	value: usize,
+	rank: usize,
 	suit: Suit,
 	symbol: char,
 	id: usize,
 	}
 	
 impl Card {
-	fn new(value: usize, suit: Suit) -> Self {
+	fn new(rank: usize, suit: Suit) -> Self {
 		let a: usize;
 		let id;
 		let symbol: char;
@@ -56,20 +63,19 @@ impl Card {
 			Suit::Diamonds => a = 1,
 			Suit::Clubs    => a = 2,
 			Suit::Spades   => a = 3,
-			Suit::None     => a = 0,
         		};
-        	if value == 0 {
+        	if rank == 0 {
         		symbol = UNICODE_CARDS[0];
         		id = 0; //special handling
         	} else {
-			symbol = UNICODE_CARDS[a*13 + value-1];
-			id = a*13 + value-1;
+			symbol = UNICODE_CARDS[a*13 + rank-1];
+			id = a*13 + rank-1;
 			}
 		
-		Self {value, suit, symbol, id,}
+		Self {rank, suit, symbol, id,}
 		}
 	fn verbose(&self) -> &str {
-		&FACE_NAMES[self.value-1]
+		&FACE_NAMES[self.rank-1]
 		}
 	fn tell_suit(&self) -> &str {
 		let mut name: &str;
@@ -78,23 +84,51 @@ impl Card {
 			Suit::Diamonds => name = "diamonds",
 			Suit::Clubs    => name = "clubs",
 			Suit::Spades   => name = "spades",
-			Suit::None     => name = "<NONE>",
         		};
         	&name
         	}
 	}
+
+fn is_a_straight(cards: &Vec<Card>) -> bool {
+	for i in (0..cards.len()-5).rev() {
+		let base_rank = cards[0+i].rank;
+		if 
+		cards.iter().filter(|x| x.rank == base_rank+1).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+2).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+3).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+4).count() > 0
+			{return true;}
+		}
+	return false;
+	}
 	
+fn which_flush(cards: &Vec<Card>) -> Option<Suit> {
+	for i in Suit::iter() {
+		if cards.iter().filter(|x| x.suit == *i).count() >= 5 {
+			return Some(*i);
+			}
+		}
+	return None;	
+	}
+
+#[allow(dead_code)]
+#[derive(Clone)]
 struct Hand {
 	cards: Vec<Card>,
 	}
 
 impl Hand {
-	fn new() -> Self {
-		Self { cards: Vec::new(), }
+	fn new(cards: Option<Vec<Card>>) -> Self {
+		let x = cards.unwrap_or(vec![]);
+		Self { cards: x }
 		}
 	
 	fn size(&self) -> usize {
 		self.cards.len()
+		}
+		
+	fn sort(&mut self) {
+		self.cards.sort_by_key(|card| card.rank);
 		}
 		
 	fn show(&self) -> String {
@@ -109,15 +143,69 @@ impl Hand {
 		
 	fn take(&mut self, card: Card) {
 		self.cards.push(card);
-		//DO NOT SORT BEFORE CHECKING!!!
-		//self.cards.sort_by_key(|card| card.value);
 		}
 		
-	fn compare(&self, ahand1: Hand, ahand2: Hand) {
-		//let mut hand1 = self.cards.clone();
-		//hand1.extend(ahand1.cards);
-		let hand1 = [self.cards.clone(), ahand1.cards].concat();
-		let hand2 = [self.cards.clone(), ahand2.cards].concat();
+	fn ranking(&self) -> usize {
+		let mut value = HIGH_CARD;
+		let mut pairs_counter @ mut threes_counter = 0;
+		
+		let mut cards = self.cards.clone();
+		cards.sort_by_key(|card| card.rank);
+		
+		if let Some(flush_suit) = which_flush(&cards) {
+			value = FLUSH;
+			let mut flush_set = cards.clone();
+			flush_set.retain(|x| x.suit == flush_suit);
+			if is_a_straight(&flush_set) {
+				value = STRAIGHT_FLUSH;
+				}
+			}
+		
+		for i in 2..RANKS {
+			let count = cards.iter().filter(|x| x.rank == i).count();
+			match count {
+				4 => value = value.max(FOUR_OF_A_KIND),
+				3 => {value = value.max(THREE_OF_A_KIND); threes_counter += 1;},
+				2 => {value = value.max(ONE_PAIR); pairs_counter += 1;},
+				_ => (),
+				};
+			}
+		
+		if pairs_counter > 1 
+			{ value = value.max(TWO_PAIRS); }
+		if threes_counter > 0 && pairs_counter > 0 || threes_counter > 1
+			{ value = value.max(FULL_HOUSE);}
+			
+		if value < STRAIGHT && is_a_straight(&cards) {
+			value = STRAIGHT;
+			}	
+			
+		//TO-DO: Truncate to 5 cards with best rank for draws
+		
+		return value;
+		}
+		
+	fn verbose(&self) -> &str {
+		match self.ranking() {
+			HIGH_CARD 	=> return "high card",
+			ONE_PAIR 	=> return "one pair",
+			TWO_PAIRS 	=> return "two pairs",
+			THREE_OF_A_KIND => return "three of a kind",
+			STRAIGHT 	=> return "straight",
+			FLUSH 		=> return "flush",
+			FULL_HOUSE 	=> return "full house",
+			FOUR_OF_A_KIND 	=> return "four of a kind",
+			STRAIGHT_FLUSH 	=> return "straight flush",
+			ROYAL_FLUSH 	=> return "royal flush",
+			_ 		=> return "",
+			};
+		}
+	
+	fn join(&mut self, input: &Hand) -> Hand {
+		let mut buffer = self.cards.clone();
+		buffer.extend(input.cards.clone());
+		buffer.sort_by_key(|card| card.rank);
+		Hand::new(Some(buffer))
 		}
 	}
 	
@@ -178,168 +266,11 @@ fn ask() -> i32 {
 	return value;
 	}
 
-
-
-
-
-
-
-
-//DEAD CODE WALKIN'
-
-fn check_hand(player_hand: [Card; 2], community: [Card; 5]) -> usize {
-	let cards = [player_hand[0], player_hand[1],
-		community[0], community[1], community[2], community[3], community[4]]; 
-
-	let mut value = HIGH_CARD;
-	let mut kinds: [usize; 15] = [0; 15];
-	
-	let mut kicker = 0;
-	
-	let mut count_hearts @ mut count_diamonds @ mut count_clubs @ mut count_spades = 0;
-	
-	let mut pairs = 0;
-	let mut triple = false;
-	let mut fourofakind = false;
-	let mut flush = false;
-	
-	let mut straight_counter = 0;
-
-	let mut straight_set: [Card; 5] = [Card::new(0, Suit::None); 5];
-	
-	//for i in 0..cards.len() {
-	for card in cards {
-		match card.suit {
-			Suit::Hearts => {
-				count_hearts += 1;
-				//kinds[card.value][0] = card;
-				},
-			Suit::Diamonds => {
-				count_diamonds += 1;
-				//kinds[card.value][1] = card
-				},
-			Suit::Clubs => {
-				count_clubs += 1;
-				//kinds[card.value][2] = card
-				},
-			Suit::Spades => {
-				count_spades += 1;
-				//kinds[card.value][3] = card
-				},
-			Suit::None => (),
-        		};
-        	kinds[card.value] += 1;
-        	}
-        	
-        //CHECK IF WE HAVE ONE OF THE FLUSHES
-        if count_hearts == 5 || count_diamonds == 5 || count_clubs == 5 || count_spades == 5 {
-	        value = value.max(FLUSH);
-	        println!("Flush!");
-	        //MOVE THIS LOWER! TO BOTTOM
-	        /*let kicker = cards.iter()
-    			.filter(|x| x.suit == Suit::Hearts)
-   			.max_by(|a, b| a.value.cmp(&b.value));*/
-	        }
-	        
-	//SEARCH FOR STRAIGHT
-        /*for i in 2..15 {
-		match kinds[i] {
-			4 => {value = value.max(FOUR_OF_A_KIND); kicker = i},
-			3 => triple      = true,
-			2 => pairs      += 1,
-			_ => (),
-			};
-		if kinds[i]>1 {
-			kicker = kinds[i]-1;
-			println!("{} of {}'s!", kicker, FACE_NAMES[i]);
-			}
-		if kinds[i]>0 && kinds[i-1]>0 {
-			straight_counter += 1;
-		} else {
-			straight_counter = 0;
-			}
-		if straight_counter >= 4 {
-			value = value.max(STRAIGHT);
-			println!("Straight");
-			
-			//kicker = i;
-			//println!("Straight with {} high!", FACES[i]);
-			//let straight_set = [high_straigh]
-			}
-		}*/
-        	
-	//FLUSH DEBUG - UNCOMMENT
-	//println!("H {}  D {}  C {}  S {}",count_hearts,count_diamonds,count_clubs,count_spades);
-	
-	
-	
-	/*
-	for i in cards  {
-		match i {       //Check for flush
-			1..=13  => count_hearts   += 1,
-			14..=26 => count_diamonds += 1,
-			27..=39 => count_clubs    += 1,
-			40..=52 => count_spades   += 1,
-			_ => (),
-			};
-		count_faces[i%13] += 1;
-		}
-	for i in 1..14 {
-		match count_faces[i] {
-			4 => fourofakind = true,
-			3 => triple      = true,
-			2 => pairs      += 1,
-			_ => (),
-			};
-		if count_faces[i]>1 {
-			println!("{} of {}'s!", count_faces[i], FACE_NAMES[i]);
-			}
-		if count_faces[i]>0 && count_faces[i-1]>0 {
-			count_straight += 1;
-		} else {
-			count_straight = 0;
-			}
-		if count_straight >= 4 {
-			value = value.max(STRAIGHT);
-			high_straight = i;
-			//println!("Straight with {} high!", FACES[i]);
-			//let straight_set = [high_straigh]
-			}
-		}
-	if fourofakind {
-		value = value.max(FOUR_OF_A_KIND);
-		println!("Four of a kind!");
-		} else {
-	 if triple && pairs > 0 {
-	 	value = value.max(FULL_HOUSE);
-	  	println!("Full house!");
-	  	} else {
-	   if triple && pairs ==0 {
-	   	value = value.max(THREE_OF_A_KIND);
-	    	println!("A triple!");
-	    	} else {
-	     if pairs == 2 {
-	     	value = value.max(TWO_PAIRS);
-	      	println!("Two pairs!");
-	      	} else {
-	       if pairs == 1 {
-	       	value = value.max(ONE_PAIR);
-	        println!("A pair!");
-	        }}}}}
-	
-	if count_hearts == 5 || count_diamonds == 5 || count_clubs == 5 || count_spades == 5 {
-		if high_straight > 0 {
-			value = value.max(STRAIGHT_FLUSH);
-			println!("Straight flush!");
-		    	} else {
-			value = value.max(FLUSH);
-			println!("Flush!");
-			}
-		} else {
-	if high_straight > 0 {
-	    	println!("Straight with {} high!", high_straight);
-		}}*/
-	return value;
+fn does_hand_win_with(hand_1: Hand, hand_2: Hand) -> bool {
+	if hand_1.ranking() > hand_1.ranking() {return true;}
+	if hand_1.ranking() < hand_1.ranking() {return false;}
+	hand_1.cards;
+	return true;	
 	}
 	
 fn print_table(community: &String, player_hand: &String, dealer_hand: &String, player_cash: i32, pot: u32) {
@@ -347,8 +278,8 @@ fn print_table(community: &String, player_hand: &String, dealer_hand: &String, p
 	println!("\nDealer hand: {}\n\n\n", dealer_hand);
 	println!("   {}  {}\n\n", BLANK_CARD, community);
 	println!("Your hand: {}\n", player_hand);
-	println!("Your Cash: {}", player_cash);
-	println!("This pot:  {}", pot);
+	//println!("Your Cash: {}", player_cash);
+	//println!("This pot:  {}", pot);
 	}
 	
 
@@ -359,9 +290,9 @@ fn main() {
 	loop {
 		//Start a hand
 		let mut deck	    = Deck::new();
-		let mut community   = Hand::new();
-		let mut player_hand = Hand::new();
-		let mut dealer_hand = Hand::new();
+		let mut community   = Hand::new(None);
+		let mut player_hand = Hand::new(None);
+		let mut dealer_hand = Hand::new(None);
 		let mut bet: i32;
 		let mut pot: u32 = 0;
 		
@@ -372,7 +303,7 @@ fn main() {
 		
 		//pre-flop
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		bet = ask();
+		//bet = ask();
 		
 		//flop
 		/* burn card*/ deck.deal();
@@ -380,24 +311,33 @@ fn main() {
 		community.take(deck.deal());
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		bet = ask();
+		//bet = ask();
 		
 		//turn
 		/* burn card*/ deck.deal();
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		bet = ask();
+		//bet = ask();
 		
 		//river
 		/* burn card*/ deck.deal();
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		bet = ask();
+		//bet = ask();
 		
 		//showdown
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.show(), player_cash, pot);
-		ask();
-		
+		let player_7 = community.join(&player_hand);
+		let dealer_7 = community.join(&dealer_hand);
+		println!("   {}", player_7.show());
+		println!("vs {}", dealer_7.show());
+		println!("You have {}", player_7.verbose());
+		if player_7.ranking() > dealer_7.ranking() {println!("You won!");}
+		if player_7.ranking() < dealer_7.ranking() {println!("You lost, you fucking whore.");}
+		if player_7.ranking() == dealer_7.ranking() {println!("To be continued...");}
+		//ask();
+		//let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+		if player_7.ranking() == STRAIGHT_FLUSH { let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");}
 		}
 	}
 	
