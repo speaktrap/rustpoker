@@ -101,6 +101,37 @@ fn is_a_straight(cards: &Vec<Card>) -> bool {
 		}
 	return false;
 	}
+
+fn remove_sameranks(cards: &mut Vec<Card>) {
+    for i in 0..cards.len() {
+        let mut j = i + 1;
+        while j < cards.len() {
+            if cards[i].rank == cards[j].rank {
+                cards.remove(j);
+            } else {
+                j += 1;
+            }
+        }
+    }
+}
+/*
+fn extract_straight(cards: &Vec<Card>) -> bool {
+	for i in (0..cards.len()-5).rev() {
+		let base_rank = cards[0+i].rank;
+		if 
+		cards.iter().filter(|x| x.rank == base_rank+1).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+2).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+3).count() > 0 &&
+		cards.iter().filter(|x| x.rank == base_rank+4).count() > 0 {
+			let mut buffer: Vec<Card> = vec![cards];
+			}
+		}
+	return buffer;
+	}*/
+
+fn sort_by_rank(cards: &mut Vec<Card>) {
+		cards.sort_by_key(|card| card.rank);
+		}
 	
 fn which_flush(cards: &Vec<Card>) -> Option<Suit> {
 	for i in Suit::iter() {
@@ -109,6 +140,86 @@ fn which_flush(cards: &Vec<Card>) -> Option<Suit> {
 			}
 		}
 	return None;	
+	}
+	
+fn compare_hands(player1: &Hand, player2: &Hand) -> (usize, Vec<Card>, Vec<Card>) { // 0 - nobody wins
+	let ranking = player1.ranking();
+	let ranking_2 = player2.ranking();
+	
+	let mut cards = [player1.cards.clone(), player2.cards.clone()];
+	
+	/*if ranking != ranking_2 {
+		for p in 0..2 {
+		while cards[p].len() > 5 {
+			cards[p].remove(0);
+		}}}*/ //not needed lol
+	if ranking > ranking_2 {
+		return (1, cards[0].clone(), cards[1].clone()); }
+	if ranking < ranking_2 {
+		return (2, cards[0].clone(), cards[1].clone()); }
+	
+	if ranking == FLUSH || ranking == STRAIGHT_FLUSH {
+		let the_suit = which_flush(&cards[0]);
+		for i in 0..2 { cards[i].retain(|&x| x.suit == the_suit.unwrap()); }
+		for i in 0..2 { sort_by_rank(&mut cards[i]); }
+		}
+	
+	for i in 0..2 { sort_by_rank(&mut cards[i]); }
+	
+	if ranking == STRAIGHT || ranking == STRAIGHT_FLUSH {
+		for i in 0..2 {
+			remove_sameranks(&mut cards[i]);
+			while   cards[i].len() > 1 &&
+				cards[i][cards[i].len()-2].rank != cards[i][cards[i].len()-1].rank-1 
+				{ cards[i].pop(); }
+			}}
+			
+	//sort again because PARANOIA
+	for i in 0..2 { sort_by_rank(&mut cards[i]); }
+	
+	//4 a kind go to the end, then 3, then pairs
+	if ranking == ONE_PAIR  ||
+	   ranking == TWO_PAIRS ||
+	   ranking == THREE_OF_A_KIND ||
+	   ranking == FULL_HOUSE ||
+	   ranking == FOUR_OF_A_KIND {
+	   	for p in 0..2 {
+			for n_of_a_kind in 2..5 {
+			
+			for i in 2..RANKS {
+				let mut buffer: Vec<Card> = vec![];
+				if cards[p].iter().filter(|x| x.rank == i).count() == n_of_a_kind {
+					cards[p].retain(|x| {
+						if x.rank == i {
+							buffer.push(*x);
+							false
+						} else {
+							true
+							}
+						});
+					sort_by_rank(&mut buffer);
+					cards[p].extend(buffer);
+					}
+				}
+				}
+			}
+		}
+	
+	for p in 0..2 {
+		while cards[p].len() > 5 {
+			cards[p].remove(0);
+		}}
+	
+	//COMPARE FROM HIGHEST TO LOWEST
+	for (x, y) in cards[0].iter()
+				.rev()
+			.zip(cards[1].iter()
+				.rev())
+				.map(|(a, b)| (a.rank, b.rank)) {
+			if x > y { return (1, cards[0].clone(), cards[1].clone()); }
+			if x < y { return (2, cards[0].clone(), cards[1].clone()); }
+			}
+	return (0, cards[0].clone(), cards[1].clone());
 	}
 
 #[allow(dead_code)]
@@ -178,9 +289,7 @@ impl Hand {
 			
 		if value < STRAIGHT && is_a_straight(&cards) {
 			value = STRAIGHT;
-			}	
-			
-		//TO-DO: Truncate to 5 cards with best rank for draws
+			}
 		
 		return value;
 		}
@@ -329,15 +438,25 @@ fn main() {
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.show(), player_cash, pot);
 		let player_7 = community.join(&player_hand);
 		let dealer_7 = community.join(&dealer_hand);
-		println!("   {}", player_7.show());
-		println!("vs {}", dealer_7.show());
-		println!("You have {}", player_7.verbose());
-		if player_7.ranking() > dealer_7.ranking() {println!("You won!");}
-		if player_7.ranking() < dealer_7.ranking() {println!("You lost, you fucking whore.");}
-		if player_7.ranking() == dealer_7.ranking() {println!("To be continued...");}
+		
+		let (winner, fcards1, fcards2) = compare_hands(&player_7, &dealer_7);
+		
+		let player_5 = Hand::new(Some(fcards1));
+		let dealer_5 = Hand::new(Some(fcards2));
+		
+		println!("   {}", player_5.show());
+		println!("vs {}", dealer_5.show());
+		println!("  You have {}", player_7.verbose());
+		println!("Dealer has {}", dealer_7.verbose());
+		match winner {
+			0 => println!("It's a draw!"),
+			1 => println!("You won!"),
+			2 => println!("You lost, you fucking whore."),
+			_ => println!("I AM ERROR."),
+			};
 		//ask();
-		//let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
-		if player_7.ranking() == STRAIGHT_FLUSH { let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");}
+		let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+		//if STRAIGHT_FLUSH == dealer_7.ranking() { let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");}
 		}
 	}
 	
