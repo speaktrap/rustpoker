@@ -90,7 +90,7 @@ impl Card {
 	}
 
 fn is_a_straight(cards: &Vec<Card>) -> bool {
-	for i in (0..cards.len()-5).rev() {
+	for i in (0..cards.len()-4).rev() {
 		let base_rank = cards[0+i].rank;
 		if 
 		cards.iter().filter(|x| x.rank == base_rank+1).count() > 0 &&
@@ -114,20 +114,6 @@ fn remove_sameranks(cards: &mut Vec<Card>) {
         }
     }
 }
-/*
-fn extract_straight(cards: &Vec<Card>) -> bool {
-	for i in (0..cards.len()-5).rev() {
-		let base_rank = cards[0+i].rank;
-		if 
-		cards.iter().filter(|x| x.rank == base_rank+1).count() > 0 &&
-		cards.iter().filter(|x| x.rank == base_rank+2).count() > 0 &&
-		cards.iter().filter(|x| x.rank == base_rank+3).count() > 0 &&
-		cards.iter().filter(|x| x.rank == base_rank+4).count() > 0 {
-			let mut buffer: Vec<Card> = vec![cards];
-			}
-		}
-	return buffer;
-	}*/
 
 fn sort_by_rank(cards: &mut Vec<Card>) {
 		cards.sort_by_key(|card| card.rank);
@@ -387,14 +373,15 @@ fn print_table(community: &String, player_hand: &String, dealer_hand: &String, p
 	println!("\nDealer hand: {}\n\n\n", dealer_hand);
 	println!("   {}  {}\n\n", BLANK_CARD, community);
 	println!("Your hand: {}\n", player_hand);
-	//println!("Your Cash: {}", player_cash);
-	//println!("This pot:  {}", pot);
+	println!("Your Cash: {}", player_cash);
+	println!("This pot:  {}", pot);
 	}
 	
 
 fn main() {
 	let mut rng = rand::thread_rng();
 	let mut player_cash: i32 = 1000;
+	let ante: u32 = 20; 
 		
 	loop {
 		//Start a hand
@@ -410,9 +397,13 @@ fn main() {
 		player_hand.take(deck.deal());
 		dealer_hand.take(deck.deal());
 		
+		//ante
+		pot += 2*ante; player_cash = player_cash.checked_sub((ante) as i32).unwrap();
+		
 		//pre-flop
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		//bet = ask();
+		bet = ask(); if bet <0 {break;} pot = pot.checked_add((2*bet) as u32).unwrap(); player_cash -= bet;
+		
 		
 		//flop
 		/* burn card*/ deck.deal();
@@ -420,19 +411,19 @@ fn main() {
 		community.take(deck.deal());
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		//bet = ask();
+		bet = ask(); if bet <0 {break;} pot = pot.checked_add((2*bet) as u32).unwrap(); player_cash -= bet;
 		
 		//turn
 		/* burn card*/ deck.deal();
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		//bet = ask();
+		bet = ask(); if bet <0 {break;} pot = pot.checked_add((2*bet) as u32).unwrap(); player_cash -= bet;
 		
 		//river
 		/* burn card*/ deck.deal();
 		community.take(deck.deal());
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.tease(), player_cash, pot);
-		//bet = ask();
+		bet = ask(); if bet <0 {break;} pot = pot.checked_add((2*bet) as u32).unwrap(); player_cash -= bet;
 		
 		//showdown
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.show(), player_cash, pot);
@@ -441,21 +432,29 @@ fn main() {
 		
 		let (winner, fcards1, fcards2) = compare_hands(&player_7, &dealer_7);
 		
-		let player_5 = Hand::new(Some(fcards1));
-		let dealer_5 = Hand::new(Some(fcards2));
+		//let player_5 = Hand::new(Some(fcards1));
+		//let dealer_5 = Hand::new(Some(fcards2));
 		
-		println!("   {}", player_5.show());
-		println!("vs {}", dealer_5.show());
+		//println!("   {}", player_5.show());
+		//println!("vs {}", dealer_5.show());
 		println!("  You have {}", player_7.verbose());
 		println!("Dealer has {}", dealer_7.verbose());
 		match winner {
-			0 => println!("It's a draw!"),
-			1 => println!("You won!"),
-			2 => println!("You lost, you fucking whore."),
+			0 => { println!("It's a draw!");
+				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+				player_cash = player_cash.checked_add((pot/2) as i32).unwrap();;
+				},
+			1 => { println!("You won!");
+				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+				player_cash = player_cash.checked_add(pot as i32).unwrap();
+				},
+			2 => { println!("You lost, you fucking whore.");
+				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+				},
 			_ => println!("I AM ERROR."),
 			};
 		//ask();
-		let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
+		//let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
 		//if STRAIGHT_FLUSH == dealer_7.ranking() { let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");}
 		}
 	}
