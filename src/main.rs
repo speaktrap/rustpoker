@@ -11,9 +11,9 @@ const UNICODE_CARDS: [char; 54] =       [' ',  '🂲', '🂳', '🂴', '🂵', '
 const BLANK_CARD: char = UNICODE_CARDS[53];
 const FACE_NAMES: &'static [&'static str] = &[" ", " ", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace"];
 
-const JACK: usize = 11;
-const QUEEN: usize = 12;
-const KING: usize = 13;
+//const JACK: usize = 11;
+//const QUEEN: usize = 12;
+//const KING: usize = 13;
 const ACE: usize = 14;
 const RANKS: usize = 15;
 
@@ -64,21 +64,21 @@ impl Card {
 			Suit::Clubs    => a = 2,
 			Suit::Spades   => a = 3,
         		};
-        	if rank == 0 {
+        	/*if rank == 0 {
         		symbol = UNICODE_CARDS[0];
         		id = 0; //special handling
-        	} else {
+        	} else {*/
 			symbol = UNICODE_CARDS[a*13 + rank-1];
 			id = a*13 + rank-1;
-			}
+			//}
 		
 		Self {rank, suit, symbol, id,}
 		}
-	fn verbose(&self) -> &str {
+	/*fn tell_rank(&self) -> &str {
 		&FACE_NAMES[self.rank-1]
-		}
-	fn tell_suit(&self) -> &str {
-		let mut name: &str;
+		}*/
+	/*fn tell_suit(&self) -> &str {
+		let name: &str;
 		match self.suit {
 			Suit::Hearts   => name = "hearts",
 			Suit::Diamonds => name = "diamonds",
@@ -86,7 +86,7 @@ impl Card {
 			Suit::Spades   => name = "spades",
         		};
         	&name
-        	}
+        	}*/
 	}
 
 fn is_a_straight(cards: &Vec<Card>) -> bool {
@@ -128,21 +128,16 @@ fn which_flush(cards: &Vec<Card>) -> Option<Suit> {
 	return None;	
 	}
 	
-fn compare_hands(player1: &Hand, player2: &Hand) -> (usize, Vec<Card>, Vec<Card>) { // 0 - nobody wins
+fn compare_hands(player1: &Hand, player2: &Hand) -> usize { // 0 - nobody wins
 	let ranking = player1.ranking();
 	let ranking_2 = player2.ranking();
 	
 	let mut cards = [player1.cards.clone(), player2.cards.clone()];
 	
-	/*if ranking != ranking_2 {
-		for p in 0..2 {
-		while cards[p].len() > 5 {
-			cards[p].remove(0);
-		}}}*/ //not needed lol
 	if ranking > ranking_2 {
-		return (1, cards[0].clone(), cards[1].clone()); }
+		return 1; }
 	if ranking < ranking_2 {
-		return (2, cards[0].clone(), cards[1].clone()); }
+		return 2; }
 	
 	if ranking == FLUSH || ranking == STRAIGHT_FLUSH {
 		let the_suit = which_flush(&cards[0]);
@@ -202,10 +197,10 @@ fn compare_hands(player1: &Hand, player2: &Hand) -> (usize, Vec<Card>, Vec<Card>
 			.zip(cards[1].iter()
 				.rev())
 				.map(|(a, b)| (a.rank, b.rank)) {
-			if x > y { return (1, cards[0].clone(), cards[1].clone()); }
-			if x < y { return (2, cards[0].clone(), cards[1].clone()); }
+			if x > y { return 1; }
+			if x < y { return 2; }
 			}
-	return (0, cards[0].clone(), cards[1].clone());
+	return 0;
 	}
 
 #[allow(dead_code)]
@@ -220,13 +215,13 @@ impl Hand {
 		Self { cards: x }
 		}
 	
-	fn size(&self) -> usize {
+	/*fn size(&self) -> usize {
 		self.cards.len()
 		}
 		
 	fn sort(&mut self) {
 		self.cards.sort_by_key(|card| card.rank);
-		}
+		}*/
 		
 	fn show(&self) -> String {
 		let text: Vec<String> = self.cards.iter().map(|card| card.symbol.to_string()).collect();
@@ -255,7 +250,10 @@ impl Hand {
 			flush_set.retain(|x| x.suit == flush_suit);
 			if is_a_straight(&flush_set) {
 				value = STRAIGHT_FLUSH;
-				}
+				sort_by_rank(&mut flush_set);
+				if flush_set[flush_set.len()-1].rank == ACE {
+					value = ROYAL_FLUSH;
+				}}
 			}
 		
 		for i in 2..RANKS {
@@ -291,7 +289,7 @@ impl Hand {
 			FULL_HOUSE 	=> return "full house",
 			FOUR_OF_A_KIND 	=> return "four of a kind",
 			STRAIGHT_FLUSH 	=> return "straight flush",
-			ROYAL_FLUSH 	=> return "royal flush",
+			ROYAL_FLUSH 	=> return "royal flush!",
 			_ 		=> return "",
 			};
 		}
@@ -321,14 +319,14 @@ impl Deck {
 		Self { cards }
 		}
 		
-	fn size(&self) -> usize {
+	/*fn size(&self) -> usize {
 		self.cards.len()
-		}
+		}*/
 		
-	fn show(&self) -> String {
+	/*fn show(&self) -> String {
 		let symbols: Vec<String> = self.cards.iter().map(|card| card.symbol.to_string()).collect();
         	symbols.join(FACE_NAMES[0])
-		}
+		}*/
 		
 	fn deal(&mut self) -> Card {
 		self.cards.pop().unwrap()
@@ -338,7 +336,7 @@ impl Deck {
 
 
 fn ask() -> i32 {
-	let mut value: i32 = 0;
+	let mut value: i32;
 	loop {
 		let mut input = String::new();
 		io::stdin()
@@ -347,8 +345,8 @@ fn ask() -> i32 {
 		if (&input[0..1]).chars().next().expect("Expect letter").is_alphabetic() {
 			let a = (&input[0..1]).chars().next().unwrap();
 			if a == 'q' {value = -9; break}
-			if a == 'c' {value = -1; break}
-			if a == 'p' {value = -3; break}
+			//if a == 'c' {value = -1; break}
+			//if a == 'p' {value = -3; break}
 			}
 		if (&input[0..]).chars().next().expect("Expect number").is_numeric() {
 			value = match input.trim().parse() {
@@ -359,13 +357,6 @@ fn ask() -> i32 {
 			}
 		}
 	return value;
-	}
-
-fn does_hand_win_with(hand_1: Hand, hand_2: Hand) -> bool {
-	if hand_1.ranking() > hand_1.ranking() {return true;}
-	if hand_1.ranking() < hand_1.ranking() {return false;}
-	hand_1.cards;
-	return true;	
 	}
 	
 fn print_table(community: &String, player_hand: &String, dealer_hand: &String, player_cash: i32, pot: u32) {
@@ -379,7 +370,6 @@ fn print_table(community: &String, player_hand: &String, dealer_hand: &String, p
 	
 
 fn main() {
-	let mut rng = rand::thread_rng();
 	let mut player_cash: i32 = 1000;
 	let ante: u32 = 20; 
 		
@@ -430,7 +420,7 @@ fn main() {
 		let player_7 = community.join(&player_hand);
 		let dealer_7 = community.join(&dealer_hand);
 		
-		let (winner, fcards1, fcards2) = compare_hands(&player_7, &dealer_7);
+		let winner = compare_hands(&player_7, &dealer_7);
 		
 		//let player_5 = Hand::new(Some(fcards1));
 		//let dealer_5 = Hand::new(Some(fcards2));
@@ -442,13 +432,13 @@ fn main() {
 		match winner {
 			0 => { println!("It's a draw!");
 				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
-				player_cash = player_cash.checked_add((pot/2) as i32).unwrap();;
+				player_cash = player_cash.checked_add((pot/2) as i32).unwrap();
 				},
 			1 => { println!("You won!");
 				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
 				player_cash = player_cash.checked_add(pot as i32).unwrap();
 				},
-			2 => { println!("You lost, you fucking whore.");
+			2 => { println!("You lost...");
 				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
 				},
 			_ => println!("I AM ERROR."),
