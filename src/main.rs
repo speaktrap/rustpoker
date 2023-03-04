@@ -1,4 +1,3 @@
-//use rand::distributions::{Distribution, Uniform};
 use rand::seq::SliceRandom;
 use rand::prelude::*;
 use std::io;
@@ -333,8 +332,6 @@ impl Deck {
 		}
 	}
 
-
-
 fn ask() -> i32 {
 	let mut value: i32;
 	loop {
@@ -419,17 +416,10 @@ fn main() {
 		print_table(&community.show(), &player_hand.show(), &dealer_hand.show(), player_cash, pot);
 		let player_7 = community.join(&player_hand);
 		let dealer_7 = community.join(&dealer_hand);
-		
-		let winner = compare_hands(&player_7, &dealer_7);
-		
-		//let player_5 = Hand::new(Some(fcards1));
-		//let dealer_5 = Hand::new(Some(fcards2));
-		
-		//println!("   {}", player_5.show());
-		//println!("vs {}", dealer_5.show());
+
 		println!("  You have {}", player_7.verbose());
 		println!("Dealer has {}", dealer_7.verbose());
-		match winner {
+		match compare_hands(&player_7, &dealer_7) {
 			0 => { println!("It's a draw!");
 				let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
 				player_cash = player_cash.checked_add((pot/2) as i32).unwrap();
@@ -443,9 +433,6 @@ fn main() {
 				},
 			_ => println!("I AM ERROR."),
 			};
-		//ask();
-		//let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");
-		//if STRAIGHT_FLUSH == dealer_7.ranking() { let mut input = String::new(); io::stdin().read_line(&mut input).expect("Fail");}
 		}
 	}
 	
