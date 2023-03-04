@@ -28,7 +28,6 @@ const STRAIGHT_FLUSH: usize = 8;
 const ROYAL_FLUSH: usize = 9;
 
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq)]
 enum Suit {
 	Hearts,
@@ -43,7 +42,6 @@ impl Suit {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Copy, Clone, PartialEq)]
 struct Card {
 	rank: usize,
@@ -202,7 +200,6 @@ fn compare_hands(player1: &Hand, player2: &Hand) -> usize { // 0 - nobody wins
 	return 0;
 	}
 
-#[allow(dead_code)]
 #[derive(Clone)]
 struct Hand {
 	cards: Vec<Card>,
